@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hold Report Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#14143a;
+  --panel:#232357;
+  --panel-2:#2b2b66;
+  --line:#3a3a7a;
+  --ink:#ffffff;
+  --muted:#a3a3ca;
+  --blue:#3eb5eb;
+  --green:#22b14c;
+  --yellow:#ffc907;
+  --red:#ed1c24;
+  --violet:#8b7be8;
+  --teal:#00d2c6;
+  --orange:#ff7a00;
+  --pink:#f062a0;
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  font-size:14px;
+  padding:20px;
+  min-height:100vh;
+}
+.num{font-family:'Archivo',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+h1{font-family:'Archivo',sans-serif;font-size:30px;font-weight:800;letter-spacing:-.02em}
+.wrap{max-width:1720px;margin:0 auto}
+
+/* ---------- header ---------- */
+.topbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.brand small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px}
+.tools{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.btn{
+  background:var(--panel);border:1px solid var(--line);color:var(--ink);
+  padding:9px 15px;border-radius:9px;font:600 13px 'Inter',sans-serif;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;transition:.15s;
+}
+.btn:hover{background:var(--panel-2);border-color:var(--blue)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#0d0d2b}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+select,input[type=text],input[type=number]{
+  background:var(--panel);border:1px solid var(--line);color:var(--ink);
+  padding:9px 11px;border-radius:9px;font:500 13px 'Inter',sans-serif;
+}
+.stamp{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.off{background:var(--muted);box-shadow:none}
+
+/* ---------- kpi ---------- */
+.board{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:14px;align-items:stretch}
+.span2{grid-column:span 2}
+.span4,.span6{grid-column:1/-1}
+.kpi{
+  background:var(--panel);border-radius:var(--r);padding:16px 18px;
+  border:1px solid var(--line);border-left:4px solid var(--blue);position:relative;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:center;min-height:112px;
+}
+.kpi .lab{color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.kpi .val{font-size:29px;font-weight:800;margin:7px 0 2px;line-height:1.05}
+.kpi .sub{color:var(--muted);font-size:12px}
+.kpi.b1{border-left-color:var(--red)}    .kpi.b1 .val{color:var(--red)}
+.kpi.b2{border-left-color:var(--yellow)} .kpi.b2 .val{color:var(--yellow)}
+.kpi.b3{border-left-color:var(--blue)}   .kpi.b3 .val{color:var(--blue)}
+.kpi.b4{border-left-color:var(--green)}  .kpi.b4 .val{color:var(--green)}
+.kpi.b5{border-left-color:var(--violet)} .kpi.b5 .val{color:var(--violet)}
+.kpi.b6{border-left-color:var(--teal)}   .kpi.b6 .val{color:var(--teal)}
+
+/* ---------- filters ---------- */
+.filters{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px 16px;margin-bottom:14px;display:grid;
+  grid-template-columns:repeat(5,1fr) auto;gap:12px;align-items:end;
+}
+.fld label{display:block;color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.fld select,.fld input{width:100%}
+.multi{position:relative}
+.multi .head{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;
+  cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;font-weight:500;
+}
+.multi .head span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.multi .list{
+  display:none;position:absolute;z-index:60;top:calc(100% + 5px);left:0;right:0;max-height:270px;overflow:auto;
+  background:#1c1c4d;border:1px solid var(--line);border-radius:10px;padding:8px;box-shadow:0 14px 34px rgba(0,0,0,.5);
+}
+.multi.open .list{display:block}
+.multi .list label{
+  display:flex;gap:9px;align-items:center;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:13px;
+}
+.multi .list label:hover{background:var(--panel-2)}
+.multi .list input{accent-color:var(--blue)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.chip{background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--muted)}
+.chip b{color:var(--ink);font-weight:600}
+
+/* ---------- cards / charts ---------- */
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;
+  border-left:4px solid var(--line);display:flex;flex-direction:column;height:100%;min-height:376px;
+}
+.card.a1{border-left-color:var(--blue)}   .card.a2{border-left-color:var(--green)}
+.card.a3{border-left-color:var(--yellow)} .card.a4{border-left-color:var(--violet)}
+.card.a5{border-left-color:var(--teal)}   .card.a6{border-left-color:var(--orange)}
+.card.a7{border-left-color:var(--pink)}   .card.a8{border-left-color:var(--red)}
+.card h3{font-family:'Archivo',sans-serif;font-size:15.5px;font-weight:700;margin-bottom:2px}
+.card p.hint{color:var(--muted);font-size:12px;margin-bottom:12px}
+.card .ch{position:relative;flex:1;min-height:250px}
+.card.wide{min-height:0}
+#chCount{flex:none}
+.card.fit{min-height:0}
+.chead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
+.seg button{
+  background:transparent;border:0;color:var(--muted);font:600 12px 'Inter',sans-serif;
+  padding:6px 12px;border-radius:7px;cursor:pointer;
+}
+.seg button.on{background:var(--blue);color:#0d0d2b}
+
+/* ---------- table ---------- */
+.tblwrap{flex:none;overflow:auto;border-radius:10px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{
+  background:var(--panel-2);text-align:left;padding:11px 12px;font-weight:700;font-size:11.5px;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--muted);position:sticky;top:0;cursor:pointer;white-space:nowrap;z-index:5;
+}
+th:hover{color:var(--blue)}
+td{padding:10px 12px;border-top:1px solid rgba(255,255,255,.06);white-space:nowrap}
+tbody tr:hover{background:rgba(62,181,235,.08)}
+td.r,th.r{text-align:right}
+.pill{background:rgba(62,181,235,.15);color:var(--blue);padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600}
+.empty{padding:44px;text-align:center;color:var(--muted)}
+
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:26px;text-align:center;color:var(--muted);margin-bottom:14px;transition:.15s}
+.drop.hot{border-color:var(--blue);background:rgba(62,181,235,.08);color:var(--ink)}
+.toast{
+  position:fixed;right:20px;bottom:20px;background:var(--panel-2);border:1px solid var(--blue);
+  border-radius:10px;padding:13px 17px;font-size:13px;font-weight:500;z-index:99;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);transform:translateY(140%);transition:.28s;
+}
+.toast.show{transform:none}
+.toast.bad{border-color:var(--red)}
+/* laptop: four across */
+@media(max-width:1500px){
+  .board{grid-template-columns:repeat(4,1fr)}
+  .filters{grid-template-columns:repeat(3,1fr)}
+}
+/* small laptop and tablet: two across */
+@media(max-width:1050px){
+  .board{grid-template-columns:repeat(2,1fr)}
+  .filters{grid-template-columns:repeat(2,1fr)}
+  .card{min-height:340px}
+  .topbar{gap:10px}
+  .tools{width:100%}
+  .tools .btn,.tools select{flex:1;justify-content:center}
+}
+/* phone */
+@media(max-width:640px){
+  body{padding:12px}
+  .board{gap:10px;margin-bottom:10px}
+  .span2{grid-column:1/-1}
+  .filters{grid-template-columns:1fr;padding:12px}
+  h1{font-size:21px}
+  .kpi{min-height:96px;padding:13px 14px}
+  .kpi .val{font-size:22px}
+  .kpi .lab{font-size:10.5px}
+  .card{min-height:300px;padding:14px}
+  .card .ch{min-height:230px}
+  .drop{padding:16px;font-size:12.5px}
+  .stamp{width:100%}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <h1>Hold Report Dashboard</h1>
+      <small id="fileLabel">Sample data loaded &mdash; upload your own hold report to replace it</small>
+    </div>
+    <div class="tools">
+      <span class="stamp"><span class="dot off" id="liveDot"></span><span id="stampTxt">Updated just now</span></span>
+      <select id="autoSel" title="Auto refresh">
+        <option value="0">Auto refresh: off</option>
+        <option value="30">Every 30 seconds</option>
+        <option value="60">Every 1 minute</option>
+        <option value="300">Every 5 minutes</option>
+      </select>
+      <button class="btn" id="btnRefresh">Refresh data</button>
+      <button class="btn" id="btnCsv">Export CSV</button>
+      <button class="btn primary" id="btnPick">Upload Excel file</button>
+      <input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden>
+    </div>
+  </div>
+
+  <div class="drop" id="drop">Drop your <b>hold_report&hellip;.xlsx</b> here, or use <b>Upload Excel file</b>. The sheet named <b>Worksheet</b> is read automatically.</div>
+
+  <div class="board">
+    <div class="kpi b1"><div class="lab">Total hold amount</div><div class="val num" id="k1">—</div><div class="sub" id="k1s">&nbsp;</div></div>
+    <div class="kpi b2"><div class="lab">Total hold weight</div><div class="val num" id="k2">—</div><div class="sub" id="k2s">&nbsp;</div></div>
+    <div class="kpi b3"><div class="lab">Shipments on hold</div><div class="val num" id="k3">—</div><div class="sub" id="k3s">&nbsp;</div></div>
+    <div class="kpi b4"><div class="lab">Destinations</div><div class="val num" id="k4">—</div><div class="sub" id="k4s">&nbsp;</div></div>
+    <div class="kpi b5"><div class="lab">Customers</div><div class="val num" id="k5">—</div><div class="sub" id="k5s">&nbsp;</div></div>
+    <div class="kpi b6"><div class="lab">Sales people</div><div class="val num" id="k6">—</div><div class="sub" id="k6s">&nbsp;</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fld"><label>Destination</label><div class="multi" id="m-dest"><div class="head" tabindex="0"><span>All destinations</span>▾</div><div class="list"></div></div></div>
+    <div class="fld"><label>Sales person</label><div class="multi" id="m-sp"><div class="head" tabindex="0"><span>All sales people</span>▾</div><div class="list"></div></div></div>
+    <div class="fld"><label>Customer</label><div class="multi" id="m-cust"><div class="head" tabindex="0"><span>All customers</span>▾</div><div class="list"></div></div></div>
+    <div class="fld"><label>Minimum amount</label><input type="number" id="fMin" placeholder="0" min="0"></div>
+    <div class="fld"><label>Search AWB or consignee</label><input type="text" id="fSearch" placeholder="Type to search"></div>
+    <div class="fld"><button class="btn" id="btnReset" style="width:100%">Clear filters</button></div>
+    <div class="chips" id="chips" style="grid-column:1/-1"></div>
+  </div>
+
+  <div class="board">
+    <div class="card a1 span2">
+      <div class="chead">
+        <div><h3>Hold amount by destination</h3><p class="hint">Value stuck at each destination country</p></div>
+        <div class="seg" id="segDest"><button data-n="10" class="on">Top 10</button><button data-n="15">Top 15</button><button data-n="0">All</button></div>
+      </div>
+      <div class="ch"><canvas id="cDest"></canvas></div>
+    </div>
+    <div class="card a2 span2">
+      <h3>Share of hold value</h3><p class="hint">Top destinations against the rest</p>
+      <div class="ch"><canvas id="cDonut"></canvas></div>
+    </div>
+    <div class="card a3 span2">
+      <div class="chead">
+        <div><h3>Hold amount by sales person</h3><p class="hint">Who has the most value waiting to clear</p></div>
+        <div class="seg" id="segSp"><button data-n="5">Top 5</button><button data-n="10" class="on">Top 10</button><button data-n="0">All</button></div>
+      </div>
+      <div class="ch"><canvas id="cSales"></canvas></div>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="card a4 span2">
+      <h3>Amount against weight by destination</h3><p class="hint">Bars show amount, the line shows weight in kg</p>
+      <div class="ch"><canvas id="cMix"></canvas></div>
+    </div>
+    <div class="card a5 span2">
+      <h3>Top customers by hold amount</h3><p class="hint">Ten accounts holding the most value</p>
+      <div class="ch"><canvas id="cCust"></canvas></div>
+    </div>
+    <div class="card a6 span2">
+      <h3>Shipments by weight band</h3><p class="hint">How the held parcels are sized</p>
+      <div class="ch"><canvas id="cBand"></canvas></div>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="card a7 span6 wide">
+      <div class="chead">
+        <div><h3>Shipment count by destination</h3><p class="hint">Number of AWBs held at each destination, longest bar first</p></div>
+        <div class="seg" id="segCount"><button data-n="10">Top 10</button><button data-n="15" class="on">Top 15</button><button data-n="0">All</button></div>
+      </div>
+      <div class="ch" id="chCount"><canvas id="cCount"></canvas></div>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="card a8 span6 fit">
+      <div class="chead" style="margin-bottom:12px">
+        <div><h3>Held shipments</h3><p class="hint" id="rowInfo" style="margin:0">&nbsp;</p></div>
+        <div class="seg"><button class="on" id="tblAll">Showing filtered rows</button></div>
+      </div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th data-s="awb">AWB</th><th data-s="dest">Destination</th><th data-s="cons">Consignee</th>
+            <th data-s="cust">Customer</th><th data-s="sp">Sales person</th>
+            <th data-s="wt" class="r">Weight (kg)</th><th data-s="amt" class="r">Amount</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const PAL=['#3eb5eb','#22b14c','#ffc907','#ed1c24','#8b7be8','#00d2c6','#ff7a00','#f062a0','#5b8def','#9b9bb5','#7ed957','#ff5c8a'];
+const DATA_SEED=[{"awb":"S2109699","wt":54.0,"dest":"HONG KONG","cons":"SUNSUNDAY","amt":15230.0,"cust":"EXPRESS GLOBAL SERVICES","sp":"Ram Babu"},{"awb":"IN1203311","wt":3.0,"dest":"UNITED ARAB EMIRATES","cons":"GURDEEP SINGH","amt":1039.0,"cust":"PRIME WORLDWIDE LOGISTICS","sp":"Vishakha"},{"awb":"IN1203310","wt":7.0,"dest":"MALAYSIA","cons":"AKASHDEEP SINGH","amt":1639.0,"cust":"PRIME WORLDWIDE LOGISTICS","sp":"Vishakha"},{"awb":"IN1203308","wt":8.0,"dest":"UNITED ARAB EMIRATES","cons":"SHOMA QUADIR","amt":2491.0,"cust":"PRIME WORLDWIDE LOGISTICS","sp":"Vishakha"},{"awb":"IN1203309","wt":2.0,"dest":"UNITED ARAB EMIRATES","cons":"KULWINDER SINGH","amt":763.0,"cust":"PRIME WORLDWIDE LOGISTICS","sp":"Vishakha"},{"awb":"IN1211980","wt":61.0,"dest":"UNITED ARAB EMIRATES","cons":"MOZA MOHAMED ALMAZROUEI","amt":19075.0,"cust":"NOVELTY CRAFT","sp":"Muskan"},{"awb":"IN1211983","wt":21.0,"dest":"UNITED ARAB EMIRATES","cons":"MARYAM OBAID ALKAABI","amt":6617.0,"cust":"NOVELTY CRAFT","sp":"Muskan"},{"awb":"20061768","wt":3.0,"dest":"MALAYSIA","cons":"DAMIEN FOO","amt":769.0,"cust":"UNIVERSAL EXPRESS SERVICES SANDEEP","sp":"Muskan"},{"awb":"20061769","wt":1.0,"dest":"SINGAPORE","cons":"HEMALATHA GANAPATHY","amt":384.0,"cust":"UNIVERSAL EXPRESS SERVICES SANDEEP","sp":"Muskan"},{"awb":"IN1211996","wt":73.0,"dest":"SWEDEN","cons":"TINA LE PLURAT","amt":57012.0,"cust":"RIDHI SIDHI INTERNATIONAL","sp":"Suman"},{"awb":"IN1210437","wt":2.0,"dest":"UNITED STATES OF AMERICA","cons":"HARDIK MISTRY","amt":3092.0,"cust":"KI SPORTS PRIVATE LIMITED","sp":"Chanchal"},{"awb":"IN1211986","wt":0.5,"dest":"OMAN","cons":"AMMAR AL JABRI","amt":1323.0,"cust":"AMAN SALES CORPORATION","sp":"Balpreet"},{"awb":"IN1210444","wt":2.0,"dest":"CANADA","cons":"RANJAN KUMAR","amt":2502.0,"cust":"KI SPORTS PRIVATE LIMITED","sp":"Chanchal"},{"awb":"IN1211981","wt":1.0,"dest":"DENMARK","cons":"VISHAL MIRCHANDANI","amt":1864.0,"cust":"SKYLARK COURIER SERVICE","sp":"Suman"},{"awb":"IN1203312","wt":11.0,"dest":"UNITED ARAB EMIRATES","cons":"VARINDER SINGH","amt":3466.0,"cust":"PRIME WORLDWIDE LOGISTICS","sp":"Vishakha"},{"awb":"IN1211984","wt":0.5,"dest":"UNITED STATES OF AMERICA","cons":"RUBY","amt":1198.0,"cust":"SKYLARK COURIER SERVICE","sp":"Suman"},{"awb":"IN1210443","wt":36.0,"dest":"SAUDI ARABIA","cons":"ARIYA UZMA","amt":15676.0,"cust":"SEVEN CAIR SHIPPING AGENCY PRIVATE LIMITED","sp":"Chanchal"},{"awb":"IN1211987","wt":1.0,"dest":"CANADA","cons":"PIYALI SINHA/ ANUP SINHA","amt":1632.0,"cust":"SKYLARK COURIER SERVICE","sp":"Suman"},{"awb":"IN1137291","wt":0.5,"dest":"PHILIPPINES","cons":"NIKHIL GUPTA","amt":919.0,"cust":"CARGO BAZAAR","sp":"Suman"},{"awb":"IN1137290","wt":0.5,"dest":"SINGAPORE","cons":"SMITHA NAZARE","amt":310.0,"cust":"CARGO BAZAAR","sp":"Suman"},{"awb":"IN1211995","wt":7.0,"dest":"NEW ZEALAND","cons":"ANNABEL MARKHAM","amt":4486.0,"cust":"SAI INTERNATIONAL","sp":"Muskan"},{"awb":"IN1211998","wt":7.0,"dest":"AUSTRALIA","cons":"JAY ROSE","amt":3222.0,"cust":"SAI INTERNATIONAL","sp":"Muskan"},{"awb":"IN1211993","wt":36.0,"dest":"UNITED ARAB EMIRATES","cons":"DARWISH DARMAN","amt":13703.0,"cust":"THREE EXPRESS CARGO","sp":"Muskan"},{"awb":"IN1102459","wt":0.5,"dest":"SINGAPORE","cons":"SIDDHARTH SINGH","amt":310.0,"cust":"DEEPAK ENTERPRISES","sp":"Muskan"},{"awb":"IN1102458","wt":22.0,"dest":"AUSTRALIA","cons":"SHRAVIKA MITTAL","amt":9606.0,"cust":"DEEPAK ENTERPRISES","sp":"Muskan"},{"awb":"IN1211439","wt":0.5,"dest":"AUSTRALIA","cons":"HARISH KAKKAR","amt":856.0,"cust":"COURIER JUNCTION","sp":"Vishakha"},{"awb":"IN1210455","wt":3.0,"dest":"FRANCE","cons":"MR BALJINDER SINGH","amt":2786.0,"cust":"S.K. ENTERPRISES","sp":"Suman"},{"awb":"IN1210454","wt":3.0,"dest":"SPAIN","cons":"AMANDEEP SINGH","amt":3751.0,"cust":"S.K. ENTERPRISES","sp":"Suman"},{"awb":"IN1211989","wt":1.5,"dest":"UNITED ARAB EMIRATES","cons":"SHAMMA RASHED ALARYANI","amt":625.0,"cust":"C J SHIP AND SUPPLY","sp":"Bijay"},{"awb":"IN1210450","wt":1.5,"dest":"UNITED ARAB EMIRATES","cons":"DAMANJOT SINGH","amt":625.0,"cust":"S.K. ENTERPRISES","sp":"Suman"},{"awb":"IN1137046","wt":2.0,"dest":"UNITED ARAB EMIRATES","cons":"GURPINDER SINGH","amt":763.0,"cust":"VAGMINI EXPRESS PRIVATE LIMITED","sp":"Suman"},{"awb":"IN1137047","wt":2.0,"dest":"UNITED ARAB EMIRATES","cons":"RAM","amt":763.0,"cust":"VAGMINI EXPRESS PRIVATE LIMITED","sp":"Suman"},{"awb":"IN1137052","wt":14.0,"dest":"AUSTRALIA","cons":"HARJIT SINGH","amt":6344.0,"cust":"VAGMINI EXPRESS PRIVATE LIMITED","sp":"Suman"},{"awb":"2200027637","wt":1.0,"dest":"NEW ZEALAND","cons":"ASHISH BISHNOI","amt":1120.0,"cust":"AGC GLOBEX LLP","sp":"Suman"},{"awb":"IN1210449","wt":4.0,"dest":"UNITED KINGDOM","cons":"MANINDER SINGH","amt":2450.0,"cust":"S.K. ENTERPRISES","sp":"Suman"},{"awb":"IN1137049","wt":17.0,"dest":"AUSTRALIA","cons":"MANPREET KOUR","amt":7583.0,"cust":"VAGMINI EXPRESS PRIVATE LIMITED","sp":"Suman"},{"awb":"IN1137050","wt":20.0,"dest":"AUSTRALIA","cons":"HARDEEP SINGH","amt":9488.0,"cust":"VAGMINI EXPRESS PRIVATE LIMITED","sp":"Suman"},{"awb":"IN1137048","wt":27.0,"dest":"SINGAPORE","cons":"NANDNI KOHLI","amt":5647.0,"cust":"VAGMINI EXPRESS PRIVATE LIMITED","sp":"Suman"},{"awb":"IN1137051","wt":22.0,"dest":"AUSTRALIA","cons":"HARDEEP SINGH","amt":10314.0,"cust":"VAGMINI EXPRESS PRIVATE LIMITED","sp":"Suman"},{"awb":"IN1212063","wt":0.5,"dest":"AUSTRALIA","cons":"RIJUL BATRA","amt":1021.0,"cust":"EXPRESS COURIERS AND CARGO","sp":"Vishakha"},{"awb":"IN1210451","wt":18.0,"dest":"AUSTRALIA","cons":"KALYAN PICHUMANI","amt":7434.0,"cust":"AALVES LOGISTICS","sp":"Suman"},{"awb":"IN1212062","wt":0.5,"dest":"AUSTRALIA","cons":"JOANNA FRENCH","amt":986.0,"cust":"EXPRESS COURIERS AND CARGO","sp":"Vishakha"},{"awb":"S2134078","wt":20.0,"dest":"SINGAPORE","cons":"NIDHI SRIVASTAVA","amt":3753.0,"cust":"AFM LOGISTICS PRIVATE LIMITED","sp":"Vishakha"},{"awb":"IN1210446","wt":17.0,"dest":"AUSTRALIA","cons":"NITISH KUMAR","amt":12989.0,"cust":"S.K. ENTERPRISES","sp":"Suman"},{"awb":"2200027584","wt":18.0,"dest":"SINGAPORE","cons":"MR.KAPIL SETH AT","amt":3378.0,"cust":"UDAAN WORLDWIDE COURIERS","sp":"Suman"},{"awb":"IN1211358","wt":0.5,"dest":"SINGAPORE","cons":"VIVEK MATHUR","amt":310.0,"cust":"DELIVERY MASTERS","sp":"Vishakha"},{"awb":"2200027572","wt":2.0,"dest":"AUSTRALIA","cons":"MUNISH SIDANA","amt":1298.0,"cust":"AGC GLOBEX LLP","sp":"Suman"},{"awb":"2200027571","wt":4.0,"dest":"UNITED ARAB EMIRATES","cons":"VIKRAM KUMAR SRIVASTAVA","amt":1314.0,"cust":"AIR & OCEAN WORLDWIDE LLP","sp":"Suman"},{"awb":"2200027545","wt":2.0,"dest":"MALAYSIA","cons":"SUNIL SINGH","amt":603.0,"cust":"ANA GLOBAL","sp":"Chanchal"},{"awb":"2200027538","wt":15.0,"dest":"SINGAPORE","cons":"RAJAT GUPTA","amt":3094.0,"cust":"EXPRESS CARGO MOVERS","sp":"Suman"},{"awb":"2200027534","wt":3.5,"dest":"SINGAPORE","cons":"RAJAT GUPTA","amt":753.0,"cust":"EXPRESS CARGO MOVERS","sp":"Suman"},{"awb":"2200027531","wt":15.0,"dest":"SINGAPORE","cons":"RAJAT GUPTA","amt":3094.0,"cust":"EXPRESS CARGO MOVERS","sp":"Suman"},{"awb":"2200027528","wt":18.0,"dest":"SINGAPORE","cons":"RAJAT GUPTA","amt":3378.0,"cust":"EXPRESS CARGO MOVERS","sp":"Suman"},{"awb":"2200027526","wt":18.0,"dest":"SINGAPORE","cons":"RAJAT GUPTA","amt":3378.0,"cust":"EXPRESS CARGO MOVERS","sp":"Suman"},{"awb":"2200027524","wt":15.0,"dest":"SINGAPORE","cons":"RAJAT GUPTA","amt":3094.0,"cust":"EXPRESS CARGO MOVERS","sp":"Suman"},{"awb":"2200027523","wt":18.0,"dest":"SINGAPORE","cons":"RAJAT GUPTA","amt":3378.0,"cust":"EXPRESS CARGO MOVERS","sp":"Suman"},{"awb":"2200027522","wt":14.0,"dest":"SINGAPORE","cons":"RAJAT GUPTA","amt":2887.0,"cust":"EXPRESS CARGO MOVERS","sp":"Suman"},{"awb":"2200027520","wt":2.0,"dest":"AUSTRALIA","cons":"ZORAWAR SINGH BOPARAI","amt":1298.0,"cust":"AGC GLOBEX LLP","sp":"Suman"},{"awb":"2200027517","wt":35.0,"dest":"SAUDI ARABIA","cons":"MOHAMED FATHY MOHAMED ELNAWAM ALBAWADY","amt":15240.0,"cust":"QUICKPACK EXPRESS PRIVATE LIMITED","sp":"Muskan"},{"awb":"2200027498","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"IMPERIAL FOOD GENERAL TRADING LLC","amt":350.0,"cust":"QUICKPACK EXPRESS PRIVATE LIMITED","sp":"Muskan"},{"awb":"2200027488","wt":13.0,"dest":"SINGAPORE","cons":", SHREYA CHUGH","amt":2409.0,"cust":"DAM OVERSEAS","sp":"Ram Babu"},{"awb":"2200027478","wt":1.5,"dest":"AUSTRALIA","cons":"PRASAD KHAMBAYE","amt":1418.0,"cust":"AGC GLOBEX LLP","sp":"Suman"},{"awb":"2200027473","wt":1.0,"dest":"SINGAPORE","cons":"RAZWANA BEGUM ABDUL RAHIM","amt":384.0,"cust":"SR WORLD WIDE COURIERS & CARGO","sp":"Vishakha"},{"awb":"2200027466","wt":0.5,"dest":"UNITED KINGDOM","cons":"DAVID ASHCROFT","amt":538.0,"cust":"ABHINITI AIR SOLUTION","sp":"Chanchal"},{"awb":"2200027464","wt":1.0,"dest":"MALAYSIA","cons":"SANDRAVATHANAA KRISHNAN","amt":367.0,"cust":"SR WORLD WIDE COURIERS & CARGO","sp":"Vishakha"},{"awb":"2200027461","wt":1.0,"dest":"GERMANY","cons":"HEINZ HALLER","amt":1142.0,"cust":"ABHINITI AIR SOLUTION","sp":"Chanchal"},{"awb":"2200027437","wt":2.0,"dest":"UNITED ARAB EMIRATES","cons":"SYED NIZAMI","amt":763.0,"cust":"APL INTERNATIONAL","sp":"Arpit"},{"awb":"2200027425","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"KASHIF","amt":488.0,"cust":"APL INTERNATIONAL","sp":"Arpit"},{"awb":"2200027423","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"KASHIF","amt":488.0,"cust":"APL INTERNATIONAL","sp":"Arpit"},{"awb":"2200027422","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"KASHIF","amt":488.0,"cust":"APL INTERNATIONAL","sp":"Arpit"},{"awb":"2200027365","wt":22.0,"dest":"AUSTRALIA","cons":"FBA: LIKEMARY LTD","amt":10514.0,"cust":"FREIGHT NET PRIVATE LIMITED","sp":"Suman"},{"awb":"2200027363","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"FARES HIKMAT","amt":350.0,"cust":"ICPS WORLDWIDE LOGISTICS","sp":"Ram Babu"},{"awb":"2200027362","wt":2.0,"dest":"MALAYSIA","cons":"CATHERINE SEBASTIAN","amt":568.0,"cust":"M2G","sp":"Ram Babu"},{"awb":"2200027348","wt":18.0,"dest":"AUSTRALIA","cons":"SIMRAN KAUR","amt":8836.0,"cust":"JAIN TELECOM","sp":"Abhilash"},{"awb":"2200027347","wt":7.0,"dest":"AUSTRALIA","cons":"AVINASH BEHAL","amt":3222.0,"cust":"M/S GURCHETAN ENTERPRISES","sp":"Abhilash"},{"awb":"2200027346","wt":3.5,"dest":"NEW ZEALAND","cons":"SUKHWINDER SINGH SANDHU","amt":2591.0,"cust":"M/S GURCHETAN ENTERPRISES","sp":"Abhilash"},{"awb":"IN1210452","wt":12.0,"dest":"UNITED ARAB EMIRATES","cons":"NAVEEN GUPTA","amt":3781.0,"cust":"CRAFTSTAGES INTERNATIONAL PRIVATE LIMITED","sp":"Ram Babu"},{"awb":"IN1211459","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"RASHMI YADAV","amt":350.0,"cust":"COURIER JUNCTION","sp":"Vishakha"},{"awb":"2200027338","wt":15.0,"dest":"AUSTRALIA","cons":"PATRICIA HEALEY","amt":9470.0,"cust":"QUICKPACK EXPRESS PRIVATE LIMITED","sp":"Muskan"},{"awb":"2200027337","wt":10.0,"dest":"AUSTRALIA","cons":"PATRICIA HEALEY","amt":7092.0,"cust":"QUICKPACK EXPRESS PRIVATE LIMITED","sp":"Muskan"},{"awb":"1212131710","wt":0.5,"dest":"JAPAN","cons":"YAKO BOKU","amt":1640.0,"cust":"THE WORLD WIDE INTERNATIONAL","sp":"Preeti"},{"awb":"1212131711","wt":0.5,"dest":"THAILAND","cons":"BAR SAN","amt":813.0,"cust":"THE WORLD WIDE INTERNATIONAL","sp":"Preeti"},{"awb":"2200027335","wt":26.0,"dest":"UNITED KINGDOM","cons":"PUNJAB TEXTILES SOUTHALL LTD.","amt":11800.0,"cust":"ORBIT EXPRESS SERVICES","sp":"Muskan"},{"awb":"2200027334","wt":0.5,"dest":"AUSTRALIA","cons":"BEANT SINGH GILL","amt":738.0,"cust":"COMMITTED SERVICE","sp":"Balpreet"},{"awb":"2200027328","wt":6.0,"dest":"MALAYSIA","cons":"AJITPAL SINGH","amt":1405.0,"cust":"COMMITTED SERVICE","sp":"Balpreet"},{"awb":"IN1211463","wt":1.5,"dest":"UNITED KINGDOM","cons":"JITENDRA KATARIA","amt":1338.0,"cust":"SPACEDGE EXPRESS SOLUTIONS PRIVATE LIMITED","sp":"Gaurav"},{"awb":"IN1211458","wt":1.5,"dest":"UNITED KINGDOM","cons":"NEERAJ MENDIRATTA","amt":1338.0,"cust":"SPACEDGE EXPRESS SOLUTIONS PRIVATE LIMITED","sp":"Gaurav"},{"awb":"2200027324","wt":26.0,"dest":"UNITED ARAB EMIRATES","cons":"HARDIK BAGGA","amt":8192.0,"cust":"ARROW ENTERPRISES","sp":"Suman"},{"awb":"2200027323","wt":0.5,"dest":"AUSTRALIA","cons":"RATTAN KUMAR","amt":1021.0,"cust":"ABHINITI AIR SOLUTION","sp":"Chanchal"},{"awb":"2200027322","wt":23.0,"dest":"AUSTRALIA","cons":"NITISH GOEL","amt":10042.0,"cust":"INFINITY BUSINESS SYSTEMS","sp":"Balpreet"},{"awb":"2200027321","wt":0.5,"dest":"HONG KONG","cons":"NIDHA HAQ","amt":636.0,"cust":"WORLDWIDE INTERNATIONAL COURIER PRIVATE LIMITED","sp":"Vishakha"},{"awb":"2200027320","wt":20.0,"dest":"AUSTRALIA","cons":"NITISH GOEL","amt":8780.0,"cust":"INFINITY BUSINESS SYSTEMS","sp":"Balpreet"},{"awb":"2200027316","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"TARUN BAWA","amt":488.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"701055427","wt":1.5,"dest":"UNITED ARAB EMIRATES","cons":"TAHER HASSAN","amt":625.0,"cust":"TRANS XPRESS WORLDWIDE","sp":"Chanchal"},{"awb":"IN1210418","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"SIMRANJIT SINGH","amt":488.0,"cust":"RAKESH ENTERPRISES","sp":"Vishakha"},{"awb":"701054771","wt":41.0,"dest":"UNITED ARAB EMIRATES","cons":"ASHOK JAIN","amt":12918.0,"cust":"TRANS XPRESS WORLDWIDE","sp":"Chanchal"},{"awb":"2200027308","wt":0.5,"dest":"AUSTRALIA","cons":"RANJAN BHARDWAJ","amt":1021.0,"cust":"ABHINITI AIR SOLUTION","sp":"Chanchal"},{"awb":"2200027299","wt":0.5,"dest":"AUSTRALIA","cons":"AISHPREET SINGH","amt":967.0,"cust":"BHAGWATI ENTERPRISES","sp":"Suman"},{"awb":"2200027296","wt":0.5,"dest":"PHILIPPINES","cons":"MANINDER SINGH KASHYAP","amt":919.0,"cust":"BDS COURIER SERVICE","sp":"Suman"},{"awb":"2200027293","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"HEMENDRA DALAL","amt":350.0,"cust":"M/S GURCHETAN ENTERPRISES","sp":"Abhilash"},{"awb":"2200027286","wt":2.0,"dest":"QATAR","cons":"ANKITA DEY","amt":2109.0,"cust":"GANPATI EXPRESS COURIER","sp":"Balpreet"},{"awb":"2200027284","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"LOVEPREET SINGH","amt":488.0,"cust":"ARROW ENTERPRISES","sp":"Suman"},{"awb":"IN1102455","wt":0.5,"dest":"AUSTRALIA","cons":"SURENDER KUMAR","amt":738.0,"cust":"DEEPAK ENTERPRISES","sp":"Muskan"},{"awb":"2200027278","wt":3.5,"dest":"AUSTRALIA","cons":"SALLY SINGH","amt":2422.0,"cust":"S.S.AGENCY","sp":"Gaurav"},{"awb":"IN1102456","wt":16.0,"dest":"AUSTRALIA","cons":"HIMANSHU KALRA","amt":7175.0,"cust":"DEEPAK ENTERPRISES","sp":"Muskan"},{"awb":"2200027262","wt":0.5,"dest":"AUSTRALIA","cons":"GURINDER SINGH","amt":967.0,"cust":"STARLINEX SHIPPING SOLUTIONS (HARYANA)","sp":"Abhilash"},{"awb":"IN1102454","wt":16.0,"dest":"AUSTRALIA","cons":"KAJAL","amt":7175.0,"cust":"DEEPAK ENTERPRISES","sp":"Muskan"},{"awb":"IN1102457","wt":19.0,"dest":"AUSTRALIA","cons":"HIMANSHU KALRA","amt":8386.0,"cust":"DEEPAK ENTERPRISES","sp":"Muskan"},{"awb":"2200027252","wt":24.0,"dest":"PORTUGAL","cons":"BHUPINDER SINGH","amt":14770.0,"cust":"AMAN ENTERPRISES (PUNJAB)","sp":"Balpreet"},{"awb":"2200027251","wt":29.0,"dest":"UNITED ARAB EMIRATES","cons":"ALEENA THOMAS","amt":8282.0,"cust":"INEXAERGO SERVICES PRIVATE LIMITED","sp":"Ram Babu"},{"awb":"2200027250","wt":32.0,"dest":"NEW ZEALAND","cons":"SUKHPREET SINGH MANN","amt":17423.0,"cust":"KIRAT SERVICES","sp":"Gaurav"},{"awb":"2200027249","wt":24.0,"dest":"PORTUGAL","cons":"BHUPINDER SINGH","amt":14770.0,"cust":"AMAN ENTERPRISES (PUNJAB)","sp":"Balpreet"},{"awb":"2200027239","wt":2.5,"dest":"AUSTRALIA","cons":"RAJAT AGRAWAL","amt":1782.0,"cust":"SHUBHAM ENTERPRISES","sp":"Abhilash"},{"awb":"IN1211465","wt":34.0,"dest":"UNITED ARAB EMIRATES","cons":"MR. ASHAR","amt":9520.0,"cust":"SAGAR AIR EXPRESS","sp":"Preeti"},{"awb":"2200027231","wt":1.0,"dest":"UNITED KINGDOM","cons":"RAMESH KUMAR","amt":790.0,"cust":"TWINS ENTERPRISES","sp":"Suman"},{"awb":"IN1211677","wt":10.0,"dest":"CHINA","cons":"MAKSUD JI","amt":5015.0,"cust":"SAGAR AIR EXPRESS","sp":"Preeti"},{"awb":"2200027227","wt":0.5,"dest":"AUSTRALIA","cons":"MR.KARAN CHOPRA","amt":856.0,"cust":"RADHE INTERNATIONAL COURIER SERVICE","sp":"Ram Babu"},{"awb":"2200027226","wt":2.5,"dest":"QATAR","cons":"GURPREET SINGH BUTTAR","amt":2291.0,"cust":"SARDAR COURIER SERVICE","sp":"Muskan"},{"awb":"2200027224","wt":1.0,"dest":"AUSTRALIA","cons":"PRABHJOT SINGH HAYER","amt":939.0,"cust":"SPEED AIR LOGISTICS","sp":"Balpreet"},{"awb":"2200027221","wt":6.0,"dest":"SAUDI ARABIA","cons":"HARMAN KUMAR","amt":2846.0,"cust":"JAIDKA COURIER","sp":"Chanchal"},{"awb":"2200027219","wt":0.5,"dest":"CANADA","cons":"PRABHJOT KAUR CHAWLA","amt":1013.0,"cust":"RADHE INTERNATIONAL COURIER SERVICE","sp":"Ram Babu"},{"awb":"2200027218","wt":7.0,"dest":"HONG KONG","cons":"GILDA YIP","amt":2983.0,"cust":"ANJALI ENTERPRISES (JPR)","sp":"Ram Babu"},{"awb":"2200027213","wt":6.0,"dest":"UNITED ARAB EMIRATES","cons":"SAHIBNOOR SINGH","amt":1890.0,"cust":"RADHE INTERNATIONAL COURIER SERVICE","sp":"Ram Babu"},{"awb":"2200027207","wt":0.5,"dest":"HONG KONG","cons":"GAYLE RELIABLE LGOSTICS LIMITED","amt":636.0,"cust":"WORLDWIDE INTERNATIONAL COURIER PRIVATE LIMITED","sp":"Vishakha"},{"awb":"2200027206","wt":1.0,"dest":"CANADA","cons":"AMANPREET KAUR","amt":1632.0,"cust":"JAIDKA COURIER","sp":"Chanchal"},{"awb":"IN1210412","wt":4.0,"dest":"ROMANIA","cons":"ALEXANDRA MOROSAN","amt":4930.0,"cust":"HARSH INTERNATIONAL","sp":"Chanchal"},{"awb":"2200027205","wt":19.0,"dest":"UNITED ARAB EMIRATES","cons":"MAYANK SO RAVINDER KUMAR","amt":6695.0,"cust":"KARAN IMPEX","sp":"Suman"},{"awb":"IN1210415","wt":12.0,"dest":"GERMANY","cons":"NOUVEL THISSEN","amt":6845.0,"cust":"HARSH INTERNATIONAL","sp":"Chanchal"},{"awb":"2200027203","wt":6.0,"dest":"SINGAPORE","cons":"SANTHI KADIRESAN","amt":1310.0,"cust":"ANAND COURIER & CARGO SERVICES","sp":"Preeti"},{"awb":"2200027201","wt":5.0,"dest":"UNITED ARAB EMIRATES","cons":"JASKARAN GURMAIL SINGH","amt":1590.0,"cust":"RADHE INTERNATIONAL COURIER SERVICE","sp":"Ram Babu"},{"awb":"2200027200","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"GAGANDEEP SINGH","amt":488.0,"cust":"KARAN IMPEX","sp":"Suman"},{"awb":"2200027199","wt":13.0,"dest":"GERMANY","cons":"SAIRA ANAND","amt":7350.0,"cust":"VSAKG WORLD COURIER LOGISTICS LLP","sp":"Suman"},{"awb":"2200027198","wt":2.0,"dest":"UNITED ARAB EMIRATES","cons":"GURMINDER SINGH","amt":763.0,"cust":"TWINS ENTERPRISES","sp":"Suman"},{"awb":"2200027197","wt":18.0,"dest":"GERMANY","cons":"SAIRA ANAND","amt":9907.0,"cust":"VSAKG WORLD COURIER LOGISTICS LLP","sp":"Suman"},{"awb":"2200027195","wt":21.0,"dest":"GERMANY","cons":"SAIRA ANAND","amt":11427.0,"cust":"VSAKG WORLD COURIER LOGISTICS LLP","sp":"Suman"},{"awb":"2200027194","wt":8.0,"dest":"UNITED ARAB EMIRATES","cons":"ACHU THOMAS","amt":2491.0,"cust":"M2G","sp":"Ram Babu"},{"awb":"2200027193","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"SHARANJIT SINGH","amt":350.0,"cust":"BDS COURIER SERVICE","sp":"Suman"},{"awb":"2200027190","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"BHUPINDER SINGH","amt":488.0,"cust":"TWINS ENTERPRISES","sp":"Suman"},{"awb":"2200027188","wt":20.0,"dest":"GERMANY","cons":"SAIRA ANAND","amt":10932.0,"cust":"VSAKG WORLD COURIER LOGISTICS LLP","sp":"Suman"},{"awb":"2200027184","wt":6.0,"dest":"UNITED ARAB EMIRATES","cons":"GURPREET SINGH","amt":1890.0,"cust":"NKS LOGISTICS","sp":"Abhilash"},{"awb":"2200027179","wt":1.5,"dest":"UNITED ARAB EMIRATES","cons":"MANDEEP SINGH","amt":625.0,"cust":"AIRGO COURIER SERVICES","sp":"Vishakha"},{"awb":"2200027178","wt":0.5,"dest":"UNITED STATES OF AMERICA","cons":"VIJAY KUMAR MISHRA","amt":1198.0,"cust":"THE WORLD WIDE INTERNATIONAL","sp":"Preeti"},{"awb":"2200027176","wt":11.0,"dest":"AUSTRALIA","cons":"RANBIR SINGH","amt":5141.0,"cust":"SARDAR COURIER SERVICE","sp":"Muskan"},{"awb":"2200027169","wt":11.0,"dest":"UNITED ARAB EMIRATES","cons":"MANDEEP SINGH","amt":3466.0,"cust":"WORLDWIDE COURIER SERVICE","sp":"Balpreet"},{"awb":"2200027166","wt":0.5,"dest":"AUSTRALIA","cons":"SURINDER KHANGURA","amt":856.0,"cust":"PARKASH HUB","sp":"Suman"},{"awb":"2200027165","wt":1.0,"dest":"AUSTRALIA","cons":"PARAMDEEP SINGH","amt":1291.0,"cust":"SKY WARD COURIER & CARGO SERVICE","sp":"Chanchal"},{"awb":"2200027162","wt":0.5,"dest":"AUSTRALIA","cons":"MANISHA VERMA","amt":738.0,"cust":"PARKASH HUB","sp":"Suman"},{"awb":"2200027160","wt":0.5,"dest":"UNITED STATES OF AMERICA","cons":"MANINDER SANDHEY","amt":1198.0,"cust":"PARKASH HUB","sp":"Suman"},{"awb":"2200027159","wt":0.5,"dest":"JAPAN","cons":"NAOKO TOMITA","amt":1640.0,"cust":"WORLDWIDE INTERNATIONAL COURIER PRIVATE LIMITED","sp":"Vishakha"},{"awb":"2200027158","wt":0.5,"dest":"CANADA","cons":"RAJDEEP KAUR","amt":1013.0,"cust":"PARKASH HUB","sp":"Suman"},{"awb":"2200027153","wt":13.0,"dest":"UNITED ARAB EMIRATES","cons":"MOHABBATPREET SINGH","amt":4096.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"2200027148","wt":2.0,"dest":"AUSTRALIA","cons":"HARIJOT SINGH","amt":1298.0,"cust":"ARROW ENTERPRISES","sp":"Suman"},{"awb":"2200027145","wt":0.5,"dest":"UNITED KINGDOM","cons":"ADITYA KOHLI","amt":538.0,"cust":"VINAY COURIER SERVICE AND COMMUNICATION","sp":"Ram Babu"},{"awb":"2200027142","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"AYAAN SALUJA","amt":350.0,"cust":"VINAY COURIER SERVICE AND COMMUNICATION","sp":"Ram Babu"},{"awb":"2200027141","wt":0.5,"dest":"AUSTRALIA","cons":"AVANT GUPTA","amt":1021.0,"cust":"VINAY COURIER SERVICE AND COMMUNICATION","sp":"Ram Babu"},{"awb":"2200027140","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"GURKAMAL SINGH","amt":350.0,"cust":"KIRAT SERVICES","sp":"Gaurav"},{"awb":"2200027139","wt":25.0,"dest":"AUSTRALIA","cons":"MUNISH JULKA","amt":10768.0,"cust":"FATEH OVERSEAS","sp":"Muskan"},{"awb":"2200027136","wt":2.0,"dest":"AUSTRALIA","cons":"MANDEEP SINGH","amt":2094.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"2200027134","wt":7.0,"dest":"UNITED KINGDOM","cons":"K S SINDHU","amt":3676.0,"cust":"SPEED AIR LOGISTICS","sp":"Balpreet"},{"awb":"2200027132","wt":0.5,"dest":"UNITED STATES OF AMERICA","cons":"AMAN VERMA","amt":1198.0,"cust":"ASAP INTERNATIONAL COURIER SERVICES","sp":"Ram Babu"},{"awb":"2200027130","wt":4.5,"dest":"UNITED ARAB EMIRATES","cons":"RAVINDERPAL SINGH","amt":1452.0,"cust":"ARROW ENTERPRISES","sp":"Suman"},{"awb":"2200027126","wt":12.0,"dest":"AUSTRALIA","cons":"NAZAMPREET KAUR","amt":5155.0,"cust":"KIRAT SERVICES","sp":"Gaurav"},{"awb":"2200027123","wt":2.5,"dest":"AUSTRALIA","cons":"AAMIR AYAZ","amt":1985.0,"cust":"KOMAL ENTERPRISES","sp":"Preeti"},{"awb":"2200027117","wt":25.0,"dest":"AUSTRALIA","cons":"MUNISH JULKA","amt":10768.0,"cust":"FATEH OVERSEAS","sp":"Muskan"},{"awb":"2200027113","wt":0.5,"dest":"CANADA","cons":"GURIQBAL SINGH KAILA","amt":1013.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"2200027108","wt":0.5,"dest":"AUSTRALIA","cons":"DALJIT SIDHU","amt":856.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"2200027099","wt":0.5,"dest":"AUSTRALIA","cons":"SOURAV","amt":738.0,"cust":"KOMAL ENTERPRISES","sp":"Preeti"},{"awb":"2200027085","wt":0.5,"dest":"AUSTRALIA","cons":"VIKASH KUMAR","amt":738.0,"cust":"KOMAL ENTERPRISES","sp":"Preeti"},{"awb":"2200027084","wt":2.0,"dest":"CANADA","cons":"VIKAS KALER","amt":2515.0,"cust":"DHILLON INTERNATIONAL","sp":"Muskan"},{"awb":"2200027083","wt":4.0,"dest":"UNITED KINGDOM","cons":"JASHAN PREET SINGH","amt":2450.0,"cust":"ARORA COURIER","sp":"Chanchal"},{"awb":"2200027079","wt":9.0,"dest":"SINGAPORE","cons":"GAGANDEEP KAUR","amt":1753.0,"cust":"FRIENDS ENTERPRISES","sp":"Chanchal"},{"awb":"2200027077","wt":3.0,"dest":"NEW ZEALAND","cons":"PUNJAB SINGH KINGRA","amt":2111.0,"cust":"PARKASH HUB","sp":"Suman"},{"awb":"2200027073","wt":0.5,"dest":"AUSTRALIA","cons":"SAMRAT RANA SUNIDHU","amt":856.0,"cust":"PARKASH HUB","sp":"Suman"},{"awb":"2200027071","wt":4.0,"dest":"UNITED ARAB EMIRATES","cons":"HARPREET SINGH","amt":1314.0,"cust":"SARDAR COURIER SERVICE","sp":"Muskan"},{"awb":"2200027061","wt":2.0,"dest":"UNITED ARAB EMIRATES","cons":"GURSHARAN KAUR","amt":1235.0,"cust":"ARROW ENTERPRISES","sp":"Suman"},{"awb":"2200027043","wt":1.5,"dest":"FRANCE","cons":"HARMAN SINGH","amt":2777.0,"cust":"JINDAL INTERNATIONAL COURIER SERVICE","sp":"Vishakha"},{"awb":"2200027037","wt":3.0,"dest":"SINGAPORE","cons":"SANLI E&C PTE LTD","amt":679.0,"cust":"JINDAL INTERNATIONAL COURIER SERVICE","sp":"Vishakha"},{"awb":"2200027036","wt":2.5,"dest":"NEW ZEALAND","cons":"AVTAR SINGH","amt":2042.0,"cust":"KRISHNA INTERNATIONAL EXPRESS","sp":"Ram Babu"},{"awb":"2200027032","wt":0.5,"dest":"CANADA","cons":"BRAJESH DATT","amt":1013.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"2200027031","wt":0.5,"dest":"AUSTRALIA","cons":"GURPREET SINGH MALHI","amt":743.0,"cust":"DESTINY INTERNATIONAL COURIER","sp":"Aditya Negi"},{"awb":"2200027029","wt":7.0,"dest":"MALAYSIA","cons":"HARWINDER SINGH","amt":1922.0,"cust":"DESTINY INTERNATIONAL COURIER","sp":"Aditya Negi"},{"awb":"2200027024","wt":19.0,"dest":"AUSTRALIA","cons":"MEENAKSHI KUMARI","amt":8533.0,"cust":"KRISHNA INTERNATIONAL EXPRESS","sp":"Ram Babu"},{"awb":"2200027021","wt":1.0,"dest":"AUSTRALIA","cons":"ASHVMEET SIGH","amt":939.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"2200027018","wt":20.0,"dest":"AUSTRALIA","cons":"MEENAKSHI KUMARI","amt":8850.0,"cust":"KRISHNA INTERNATIONAL EXPRESS","sp":"Ram Babu"},{"awb":"2200026997","wt":0.5,"dest":"UNITED KINGDOM","cons":"HARISH R SONI","amt":538.0,"cust":"MAJISHA CORPORATION","sp":"Chanchal"},{"awb":"2200026980","wt":1.0,"dest":"UNITED ARAB EMIRATES","cons":"JASPREET SINGH","amt":488.0,"cust":"NAGRA ENTERPRISES","sp":"Babli"},{"awb":"2200026979","wt":15.0,"dest":"ITALY","cons":"ANOOP SINGH","amt":9569.0,"cust":"INFINITY BUSINESS SYSTEMS","sp":"Balpreet"},{"awb":"2200026973","wt":3.0,"dest":"GERMANY","cons":"GURJANT SINGH","amt":2064.0,"cust":"INFINITY BUSINESS SYSTEMS","sp":"Balpreet"},{"awb":"2200026969","wt":2.0,"dest":"UNITED ARAB EMIRATES","cons":"AMRIK SINGH","amt":763.0,"cust":"NAGRA ENTERPRISES","sp":"Babli"},{"awb":"2200026967","wt":1.0,"dest":"UNITED KINGDOM","cons":"PRABHJOT KUMAR","amt":790.0,"cust":"DURGA ENTERPRISES","sp":"Preeti"},{"awb":"2200026963","wt":12.0,"dest":"UNITED ARAB EMIRATES","cons":"SHRIYA SEHGAL","amt":3781.0,"cust":"SATGURU ENTERPRIES","sp":"Preeti"},{"awb":"2200026962","wt":27.0,"dest":"AUSTRALIA","cons":"GURMINDER SINGH","amt":12904.0,"cust":"GLOBAL EXPRESS","sp":"Ram Babu"},{"awb":"2200026948","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"RAHUL SINGHANIA","amt":350.0,"cust":"PARAS INTERNATIONAL","sp":"Chanchal"},{"awb":"2200026940","wt":0.5,"dest":"CANADA","cons":"GURWINDER SINGH BATTH","amt":1013.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"2200026928","wt":1.0,"dest":"UNITED KINGDOM","cons":"RAVINDER SINGH","amt":790.0,"cust":"AIRMEX INTERNATIONAL","sp":"Muskan"},{"awb":"2200026909","wt":2.0,"dest":"CANADA","cons":"RAMANDEEP KAUR","amt":2140.0,"cust":"DHILLON INTERNATIONAL","sp":"Muskan"},{"awb":"2200026902","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"KAILASH PUROHIT","amt":350.0,"cust":"WORLDX LOGISTICS","sp":"Suman"},{"awb":"2200026892","wt":17.0,"dest":"UNITED KINGDOM","cons":"MAHUA CHOWDHURY","amt":7784.0,"cust":"PARAS INTERNATIONAL","sp":"Chanchal"},{"awb":"2200026886","wt":2.0,"dest":"CANADA","cons":"ARSHDEEP","amt":2134.0,"cust":"AVTAR COURIER SERVICE","sp":"Muskan"},{"awb":"2200026884","wt":16.0,"dest":"UNITED ARAB EMIRATES","cons":"HARMANPREET KAUR","amt":5041.0,"cust":"ANYTIME EXPRESS COURIER & CARGO SOLUTION LLP","sp":"Ram Babu"},{"awb":"2200026862","wt":0.5,"dest":"AUSTRALIA","cons":"JUDI BERNSHAW","amt":738.0,"cust":"SKJ EXPRESS","sp":"Balpreet"},{"awb":"2200026859","wt":25.0,"dest":"AUSTRALIA","cons":"CHETNA ARORA","amt":10768.0,"cust":"FATEH OVERSEAS","sp":"Muskan"},{"awb":"2200026847","wt":3.5,"dest":"AUSTRALIA","cons":"MANRAJ SINGH","amt":2293.0,"cust":"G.R.D. ENTERPRISES","sp":"Arpit"},{"awb":"2200026833","wt":1.0,"dest":"AUSTRALIA","cons":"GAURAVBIR SINGH AULAKH","amt":1291.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026828","wt":0.5,"dest":"AUSTRALIA","cons":"SAHIL SINGH","amt":967.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026816","wt":19.0,"dest":"NEW ZEALAND","cons":"JOANNE SIMPSON","amt":11531.0,"cust":"OM ENTERPRISES-VARANASI","sp":"Suman"},{"awb":"2200026808","wt":0.5,"dest":"CANADA","cons":"HARNOOR SINGH","amt":1013.0,"cust":"AIRGO COURIER SERVICES","sp":"Vishakha"},{"awb":"2200026804","wt":1.0,"dest":"MALAYSIA","cons":"RAJVEER SINGH","amt":367.0,"cust":"FRIENDS ENTERPRISES","sp":"Chanchal"},{"awb":"2200026801","wt":28.0,"dest":"AUSTRALIA","cons":"AMRITPAL SINGH","amt":12060.0,"cust":"KIRAT SERVICES","sp":"Gaurav"},{"awb":"2200026788","wt":0.5,"dest":"AUSTRALIA","cons":"GURINDERJIT SINGH","amt":738.0,"cust":"FRIENDS ENTERPRISES","sp":"Chanchal"},{"awb":"2200026776","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"AMANDEEP SINGH","amt":350.0,"cust":"FRIENDS ENTERPRISES","sp":"Chanchal"},{"awb":"2200026771","wt":10.0,"dest":"AUSTRALIA","cons":"ASMITA","amt":4343.0,"cust":"KOMAL ENTERPRISES","sp":"Preeti"},{"awb":"2200026769","wt":24.0,"dest":"AUSTRALIA","cons":"SUKHWINDER KAUR","amt":10479.0,"cust":"DHILLON INTERNATIONAL","sp":"Muskan"},{"awb":"2200026768","wt":25.0,"dest":"AUSTRALIA","cons":"SUKHWINDER KAUR","amt":10768.0,"cust":"DHILLON INTERNATIONAL","sp":"Muskan"},{"awb":"2200026767","wt":0.5,"dest":"SINGAPORE","cons":"PRIYANKA","amt":310.0,"cust":"M2G","sp":"Ram Babu"},{"awb":"IN1210392","wt":39.0,"dest":"CANADA","cons":"JASVEEN KAUR","amt":27165.0,"cust":"GAURAV ENTERPRISES (PUNJAB)","sp":"Ram Babu"},{"awb":"2200026721","wt":25.0,"dest":"SINGAPORE","cons":"VINUSHAH EVANGELINE","amt":4626.0,"cust":"M2G","sp":"Ram Babu"},{"awb":"2200026719","wt":25.0,"dest":"SINGAPORE","cons":"SHOBHA CHARLENE","amt":4626.0,"cust":"M2G","sp":"Ram Babu"},{"awb":"2200026709","wt":9.0,"dest":"SINGAPORE","cons":"RITTIKA MUKHERJEE","amt":1753.0,"cust":"PARAS INTERNATIONAL","sp":"Chanchal"},{"awb":"2200026689","wt":23.0,"dest":"AUSTRALIA","cons":"MAMTAZ AHMED","amt":9364.0,"cust":"PARAS INTERNATIONAL","sp":"Chanchal"},{"awb":"2200026676","wt":21.0,"dest":"AUSTRALIA","cons":"MAMTAZ AHMED","amt":8550.0,"cust":"PARAS INTERNATIONAL","sp":"Chanchal"},{"awb":"2200026663","wt":6.0,"dest":"AUSTRALIA","cons":"HARPREET SINGH","amt":3533.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026652","wt":24.0,"dest":"AUSTRALIA","cons":"CHETNA ARORA","amt":10479.0,"cust":"FATEH OVERSEAS","sp":"Muskan"},{"awb":"2200026643","wt":23.0,"dest":"UNITED ARAB EMIRATES","cons":"FAQURUL ISLAM","amt":7247.0,"cust":"PARAS INTERNATIONAL","sp":"Chanchal"},{"awb":"2200026638","wt":1.0,"dest":"NEW ZEALAND","cons":"SARANJEET TAK","amt":1263.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026637","wt":25.0,"dest":"AUSTRALIA","cons":"MUNISH JULKA","amt":10768.0,"cust":"FATEH OVERSEAS","sp":"Muskan"},{"awb":"2200026628","wt":25.0,"dest":"AUSTRALIA","cons":"MUNISH JULKA","amt":10768.0,"cust":"FATEH OVERSEAS","sp":"Muskan"},{"awb":"ECS9737","wt":43.0,"dest":"AUSTRALIA","cons":"ROHIT KAMBOJ","amt":18521.0,"cust":"PBG MEGA MART","sp":"Vishakha"},{"awb":"2200026580","wt":1.5,"dest":"UNITED ARAB EMIRATES","cons":"AKASHDEEP SINGH","amt":625.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026572","wt":3.0,"dest":"UNITED KINGDOM","cons":"SANAMPREET SINGH","amt":2042.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026571","wt":0.5,"dest":"UNITED ARAB EMIRATES","cons":"MRS. MANJUL UBEROI","amt":350.0,"cust":"PARAS INTERNATIONAL","sp":"Chanchal"},{"awb":"2200026555","wt":21.0,"dest":"AUSTRALIA","cons":"MANDEEP KAUR","amt":10036.0,"cust":"NISHANT PHOTOSTSTE","sp":"Ram Babu"},{"awb":"2200026538","wt":3.5,"dest":"AUSTRALIA","cons":"SANAMPREET SINGH","amt":1857.0,"cust":"NISHANT PHOTOSTSTE","sp":"Ram Babu"},{"awb":"2200026448","wt":21.0,"dest":"NEW ZEALAND","cons":"JOLLY C/O- DHEERAJ KAPOOR","amt":11534.0,"cust":"S.B. EXPRESS","sp":"Suman"},{"awb":"2200026441","wt":21.0,"dest":"NEW ZEALAND","cons":"JOLLY C/O- DHEERAJ  KAPOOR","amt":11534.0,"cust":"S.B. EXPRESS","sp":"Suman"},{"awb":"2200026370","wt":9.0,"dest":"AUSTRALIA","cons":"HARPREET SINGH","amt":4833.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026363","wt":0.5,"dest":"AUSTRALIA","cons":"SANJEEV KUMAR","amt":856.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026360","wt":0.5,"dest":"UNITED STATES OF AMERICA","cons":"DIWANKER MUDH","amt":1198.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026356","wt":0.5,"dest":"UNITED KINGDOM","cons":"SACHIN AGASTYA","amt":538.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200026329","wt":8.0,"dest":"SAUDI ARABIA","cons":"WAHAJ ALEANZI","amt":3667.0,"cust":"V S GLOBAL","sp":"Bijay"},{"awb":"IN1210382","wt":0.5,"dest":"AUSTRALIA","cons":"KARANDEEP SINGH","amt":967.0,"cust":"SEVEN CAIR SHIPPING AGENCY PRIVATE LIMITED","sp":"Chanchal"},{"awb":"IN1210376","wt":10.0,"dest":"AUSTRALIA","cons":"MANITH WALIA","amt":4343.0,"cust":"SEVEN CAIR SHIPPING AGENCY PRIVATE LIMITED","sp":"Chanchal"},{"awb":"2200026250","wt":0.5,"dest":"AUSTRALIA","cons":"ARVINDER SINGH CHAKKAL","amt":738.0,"cust":"PARAS INTERNATIONAL","sp":"Chanchal"},{"awb":"2200026157","wt":1.5,"dest":"AUSTRALIA","cons":"KALAPANA TRIKAM","amt":1418.0,"cust":"M2G","sp":"Ram Babu"},{"awb":"2200026045","wt":18.0,"dest":"AUSTRALIA","cons":"ROSHNI SHINDE / SARVANG PATHAK","amt":7987.0,"cust":"CAMPLAR ENTERPRISE","sp":"Chanchal"},{"awb":"2200025935","wt":9.0,"dest":"AUSTRALIA","cons":"SUJAL","amt":3972.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200025887","wt":1.5,"dest":"UNITED ARAB EMIRATES","cons":"SUKHBIR SINGH","amt":625.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"2200025885","wt":9.0,"dest":"AUSTRALIA","cons":"KARTIK MALHOTRA","amt":4270.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"IN1211628","wt":60.0,"dest":"SAUDI ARABIA","cons":"SAEED SHERANI","amt":33712.0,"cust":"M/S NEX LOGISTIC","sp":"Abhilash"},{"awb":"2200025880","wt":5.0,"dest":"ITALY","cons":"SHARMA HITESH","amt":4183.0,"cust":"KARTIK ENTERPRISES","sp":"Muskan"},{"awb":"IN1211649","wt":3.5,"dest":"INDIA","cons":"SPP WORLDWIDE PVT LTD","amt":8024.0,"cust":"PAX FREIGHTEXPRESS","sp":"Bijay"},{"awb":"2200025631","wt":0.5,"dest":"HONG KONG","cons":"LI WAI LING","amt":636.0,"cust":"SKJ EXPRESS","sp":"Balpreet"},{"awb":"2200025606","wt":2.5,"dest":"CANADA","cons":"YOGESWARY RAJAKULENDRAM","amt":2849.0,"cust":"M2G","sp":"Ram Babu"},{"awb":"2200025574","wt":17.0,"dest":"AUSTRALIA","cons":"SHAIFALI BHASIN","amt":7583.0,"cust":"COURIERWAALE INDIA PRIVATE LIMITED","sp":"Amit"},{"awb":"2200025572","wt":18.0,"dest":"AUSTRALIA","cons":"SHAIFALI BHASIN","amt":7987.0,"cust":"COURIERWAALE INDIA PRIVATE LIMITED","sp":"Amit"},{"awb":"2200025570","wt":18.0,"dest":"AUSTRALIA","cons":"SHAIFALI BHASIN","amt":7987.0,"cust":"COURIERWAALE INDIA PRIVATE LIMITED","sp":"Amit"},{"awb":"FBA15M3N87B9","wt":19.0,"dest":"UNITED ARAB EMIRATES","cons":"AMAZON MENA LLC","amt":6754.0,"cust":"SHREE VINAYAK INDUSTRIES","sp":"SACHIN SINGH"},{"awb":"2200025488","wt":14.0,"dest":"CANADA","cons":"HARPREET KAUR","amt":10838.0,"cust":"MUNJAL SALES & SERVICES","sp":"Vishakha"},{"awb":"IN1211691","wt":14.0,"dest":"AUSTRALIA","cons":"VIVEK SUMI","amt":6344.0,"cust":"ADAMYA INTERNATIONAL","sp":"Muskan"},{"awb":"2200025296","wt":14.0,"dest":"UNITED KINGDOM","cons":"BHAVINKUMAR DER","amt":6559.0,"cust":"CAMPLAR ENTERPRISE","sp":"Chanchal"},{"awb":"2200025260","wt":24.0,"dest":"UNITED ARAB EMIRATES","cons":"CHANDRAMANI","amt":7562.0,"cust":"EXPRESS SERVICES","sp":"Muskan"},{"awb":"2200024974","wt":20.0,"dest":"AUSTRALIA","cons":"GAGN","amt":8780.0,"cust":"SST EXPRESS","sp":"Abhilash"},{"awb":"2200024953","wt":9.0,"dest":"AUSTRALIA","cons":"YAMIKA PATEL","amt":3972.0,"cust":"CAMPLAR ENTERPRISE","sp":"Chanchal"},{"awb":"2200024944","wt":7.0,"dest":"AUSTRALIA","cons":"YEDLA RAVI KUMAR","amt":3916.0,"cust":"CAMPLAR ENTERPRISE","sp":"Chanchal"},{"awb":"2200024929","wt":12.0,"dest":"AUSTRALIA","cons":"BHARTI NILESHKUMAR GONDALIYA","amt":5155.0,"cust":"CAMPLAR ENTERPRISE","sp":"Chanchal"},{"awb":"2200024846","wt":13.0,"dest":"NEW ZEALAND","cons":"YUVRAJ SHARMA","amt":7378.0,"cust":"SHARMA ENTERPRISES","sp":"Babli"},{"awb":"2200024457","wt":30.0,"dest":"UNITED KINGDOM","cons":"MITHURSAN","amt":12750.0,"cust":"SASIKALA IMPEX","sp":"Sandeep Dayma"},{"awb":"2200024453","wt":29.0,"dest":"UNITED KINGDOM","cons":"MITHURSAN","amt":12325.0,"cust":"SASIKALA IMPEX","sp":"Sandeep Dayma"},{"awb":"2200024444","wt":30.0,"dest":"UNITED KINGDOM","cons":"RAMU KUMAR","amt":12750.0,"cust":"SASIKALA IMPEX","sp":"Sandeep Dayma"},{"awb":"2200024443","wt":30.0,"dest":"UNITED KINGDOM","cons":"RAMU KUMAR","amt":12750.0,"cust":"SASIKALA IMPEX","sp":"Sandeep Dayma"},{"awb":"2200024435","wt":28.0,"dest":"UNITED KINGDOM","cons":"Y.JULIET","amt":11900.0,"cust":"SASIKALA IMPEX","sp":"Sandeep Dayma"}];
+
+let ROWS=DATA_SEED.slice();
+let FILTERED=ROWS.slice();
+const F={dest:new Set(),sp:new Set(),cust:new Set(),min:0,q:''};
+let sortKey='amt', sortDir=-1;
+let topDest=10, topSp=10, topCount=15;
+let fileHandle=null, timer=null;
+const charts={};
+
+/* ---------- helpers ---------- */
+const inr=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+const shortInr=n=>n>=10000000?'₹'+(n/10000000).toFixed(2)+' Cr':n>=100000?'₹'+(n/100000).toFixed(2)+' L':n>=1000?'₹'+(n/1000).toFixed(1)+'K':'₹'+Math.round(n);
+const kg=n=>n.toLocaleString('en-IN',{maximumFractionDigits:1})+' kg';
+function toast(msg,bad){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(bad?' bad':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',3200);}
+function stamp(){document.getElementById('stampTxt').textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+
+Chart.defaults.color='#a3a3ca';
+Chart.defaults.font.family="'Inter',sans-serif";
+Chart.defaults.font.size=11.5;
+Chart.defaults.borderColor='rgba(255,255,255,.07)';
+const tip={backgroundColor:'#1c1c4d',borderColor:'#3a3a7a',borderWidth:1,padding:11,titleFont:{weight:'700',size:13},bodyFont:{size:12.5},cornerRadius:8,displayColors:false};
+
+/* ---------- grouping ---------- */
+function group(rows,key){
+  const m={};
+  rows.forEach(r=>{const k=r[key]||'Not set';(m[k]=m[k]||{amt:0,wt:0,n:0});m[k].amt+=r.amt;m[k].wt+=r.wt;m[k].n++;});
+  return Object.entries(m).map(([k,v])=>({k,...v})).sort((a,b)=>b.amt-a.amt);
+}
+
+/* ---------- filter UI ---------- */
+function buildMulti(id,key,labelAll){
+  const box=document.getElementById(id), list=box.querySelector('.list'), head=box.querySelector('.head');
+  const vals=[...new Set(ROWS.map(r=>r[key]))].sort();
+  list.innerHTML=vals.map(v=>`<label><input type="checkbox" value="${esc(v)}"><span>${esc(v)}</span></label>`).join('');
+  list.querySelectorAll('input').forEach(cb=>cb.addEventListener('change',()=>{
+    cb.checked?F[key].add(cb.value):F[key].delete(cb.value);
+    setHead(box,F[key],labelAll);apply();
+  }));
+  head.onclick=e=>{e.stopPropagation();document.querySelectorAll('.multi').forEach(m=>m!==box&&m.classList.remove('open'));box.classList.toggle('open');};
+  head.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();head.click();}};
+  list.onclick=e=>e.stopPropagation();
+  setHead(box,F[key],labelAll);
+}
+function setHead(box,set,labelAll){
+  const s=box.querySelector('.head span');
+  s.textContent=set.size===0?labelAll:(set.size===1?[...set][0]:set.size+' selected');
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+document.addEventListener('click',()=>document.querySelectorAll('.multi').forEach(m=>m.classList.remove('open')));
+
+/* ---------- apply filters ---------- */
+function apply(){
+  const q=F.q.toLowerCase();
+  FILTERED=ROWS.filter(r=>
+    (F.dest.size===0||F.dest.has(r.dest))&&
+    (F.sp.size===0||F.sp.has(r.sp))&&
+    (F.cust.size===0||F.cust.has(r.cust))&&
+    (r.amt>=F.min)&&
+    (q===''||r.awb.toLowerCase().includes(q)||r.cons.toLowerCase().includes(q)||r.cust.toLowerCase().includes(q))
+  );
+  render();
+}
+
+/* ---------- KPIs ---------- */
+function kpis(){
+  const r=FILTERED, all=ROWS;
+  const amt=r.reduce((s,x)=>s+x.amt,0), wt=r.reduce((s,x)=>s+x.wt,0);
+  const allAmt=all.reduce((s,x)=>s+x.amt,0);
+  const top=group(r,'dest')[0], topSpn=group(r,'sp')[0];
+  set('k1',shortInr(amt),inr(amt)+(r.length!==all.length?' of '+shortInr(allAmt)+' total':''));
+  set('k2',wt.toLocaleString('en-IN',{maximumFractionDigits:0})+' kg',r.length?'Average '+ (wt/r.length).toFixed(1)+' kg per shipment':'&nbsp;');
+  set('k3',r.length.toLocaleString('en-IN'),r.length?'Average '+inr(amt/r.length)+' each':'&nbsp;');
+  set('k4',new Set(r.map(x=>x.dest)).size,top?'Highest: '+top.k:'&nbsp;');
+  set('k5',new Set(r.map(x=>x.cust)).size,'Across '+new Set(r.map(x=>x.cons)).size+' consignees');
+  set('k6',new Set(r.map(x=>x.sp)).size,topSpn?'Highest: '+topSpn.k:'&nbsp;');
+  document.getElementById('rowInfo').textContent=r.length+' of '+all.length+' shipments  •  '+inr(amt)+'  •  '+kg(wt);
+  const chips=[];
+  if(F.dest.size)chips.push('Destination <b>'+F.dest.size+'</b>');
+  if(F.sp.size)chips.push('Sales person <b>'+F.sp.size+'</b>');
+  if(F.cust.size)chips.push('Customer <b>'+F.cust.size+'</b>');
+  if(F.min>0)chips.push('Amount above <b>'+inr(F.min)+'</b>');
+  if(F.q)chips.push('Search <b>'+esc(F.q)+'</b>');
+  document.getElementById('chips').innerHTML=chips.map(c=>'<span class="chip">'+c+'</span>').join('');
+}
+function set(id,v,s){document.getElementById(id).textContent=v;document.getElementById(id+'s').innerHTML=s||'&nbsp;';}
+
+/* ---------- charts ---------- */
+function mk(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg);}
+function cut(arr,n){return n>0?arr.slice(0,n):arr;}
+
+function drawAll(){
+  const gDest=group(FILTERED,'dest'), gSp=group(FILTERED,'sp'), gCust=group(FILTERED,'cust');
+  const dTop=cut(gDest,topDest);
+
+  mk('cDest',{type:'bar',data:{labels:dTop.map(d=>d.k),datasets:[{data:dTop.map(d=>d.amt),
+    backgroundColor:dTop.map((_,i)=>PAL[i%PAL.length]),borderRadius:5,barThickness:'flex',maxBarThickness:22}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>inr(c.raw)+'  •  '+dTop[c.dataIndex].n+' shipments  •  '+kg(dTop[c.dataIndex].wt)}}},
+      scales:{x:{ticks:{callback:v=>shortInr(v)},grid:{color:'rgba(255,255,255,.06)'}},y:{grid:{display:false}}}}});
+
+  const dn=cut(gDest,7), rest=gDest.slice(7).reduce((s,x)=>s+x.amt,0);
+  const dl=dn.map(d=>d.k), dv=dn.map(d=>d.amt);
+  if(rest>0){dl.push('All others');dv.push(rest);}
+  mk('cDonut',{type:'doughnut',data:{labels:dl,datasets:[{data:dv,backgroundColor:PAL,borderColor:'#232357',borderWidth:3,hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10,padding:11,usePointStyle:true,pointStyle:'circle'}},
+        tooltip:{...tip,callbacks:{label:c=>{const t=dv.reduce((a,b)=>a+b,0);return inr(c.raw)+'  •  '+(c.raw/t*100).toFixed(1)+'%';}}}}}});
+
+  const sTop=cut(gSp,topSp);
+  mk('cSales',{type:'bar',data:{labels:sTop.map(d=>d.k),datasets:[{data:sTop.map(d=>d.amt),
+    backgroundColor:sTop.map((_,i)=>PAL[i%PAL.length]),borderRadius:6,maxBarThickness:46}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>inr(c.raw)+'  •  '+sTop[c.dataIndex].n+' shipments  •  '+kg(sTop[c.dataIndex].wt)}}},
+      scales:{y:{ticks:{callback:v=>shortInr(v)},grid:{color:'rgba(255,255,255,.06)'}},x:{grid:{display:false},ticks:{maxRotation:45,minRotation:0}}}}});
+
+  const m=cut(gDest,8);
+  mk('cMix',{data:{labels:m.map(d=>d.k),datasets:[
+    {type:'bar',label:'Amount',data:m.map(d=>d.amt),backgroundColor:'#3eb5eb',borderRadius:5,maxBarThickness:40,yAxisID:'y'},
+    {type:'line',label:'Weight (kg)',data:m.map(d=>d.wt),borderColor:'#ffc907',backgroundColor:'#ffc907',borderWidth:3,tension:.35,pointRadius:4,pointBackgroundColor:'#ffc907',yAxisID:'y1'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true,pointStyle:'circle'}},
+        tooltip:{...tip,displayColors:true,callbacks:{label:c=>c.datasetIndex===0?'Amount '+inr(c.raw):'Weight '+kg(c.raw)}}},
+      scales:{y:{position:'left',ticks:{callback:v=>shortInr(v)},grid:{color:'rgba(255,255,255,.06)'}},
+        y1:{position:'right',grid:{display:false},ticks:{callback:v=>v+' kg'}},
+        x:{grid:{display:false},ticks:{maxRotation:38,autoSkip:false,callback:function(v){const l=this.getLabelForValue(v);return l.length>13?l.slice(0,12)+'…':l;}}}}}});
+
+  const cTop=cut(gCust,10);
+  mk('cCust',{type:'bar',data:{labels:cTop.map(d=>d.k.length>22?d.k.slice(0,21)+'…':d.k),datasets:[{data:cTop.map(d=>d.amt),backgroundColor:'#8b7be8',borderRadius:5,maxBarThickness:16}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{...tip,callbacks:{title:c=>cTop[c[0].dataIndex].k,label:c=>inr(c.raw)+'  •  '+cTop[c.dataIndex].n+' shipments'}}},
+      scales:{x:{ticks:{callback:v=>shortInr(v)},grid:{color:'rgba(255,255,255,.06)'}},y:{grid:{display:false}}}}});
+
+  const nTop=cut([...gDest].sort((a,b)=>b.n-a.n),topCount);
+  const small=window.innerWidth<760;
+  const rowH=nTop.length>18?(small?20:24):(nTop.length>12?(small?25:30):(small?30:36));
+  document.getElementById('chCount').style.height=Math.max(220,nTop.length*rowH+46)+'px';
+  mk('cCount',{type:'bar',data:{labels:nTop.map(d=>d.k),datasets:[{data:nTop.map(d=>d.n),
+    backgroundColor:nTop.map((_,i)=>PAL[i%PAL.length]),borderRadius:5,maxBarThickness:26}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{...tip,callbacks:{title:c=>nTop[c[0].dataIndex].k,label:c=>c.raw+' shipments  •  '+inr(nTop[c.dataIndex].amt)+'  •  '+kg(nTop[c.dataIndex].wt)}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.06)'},ticks:{precision:0}},y:{grid:{display:false},ticks:{autoSkip:false,font:{size:window.innerWidth<760?10.5:12},
+        callback:function(v){const l=this.getLabelForValue(v),m=window.innerWidth<760?12:(window.innerWidth<1100?18:30);
+          return l.length>m?l.slice(0,m-1)+'…':l;}}}}}});
+
+  const bands=[['0 to 1 kg',0,1],['1 to 5 kg',1,5],['5 to 15 kg',5,15],['15 to 30 kg',15,30],['Above 30 kg',30,1e9]];
+  const bc=bands.map(b=>FILTERED.filter(r=>r.wt>b[1]-(b[1]===0?1:0)&&r.wt<=b[2]).length);
+  const ba=bands.map(b=>FILTERED.filter(r=>r.wt>b[1]-(b[1]===0?1:0)&&r.wt<=b[2]).reduce((s,x)=>s+x.amt,0));
+  mk('cBand',{type:'bar',data:{labels:bands.map(b=>b[0]),datasets:[{data:bc,backgroundColor:['#3eb5eb','#00d2c6','#ffc907','#ff7a00','#ed1c24'],borderRadius:5,maxBarThickness:44}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>c.raw+' shipments  •  '+inr(ba[c.dataIndex])}}},
+      scales:{y:{grid:{color:'rgba(255,255,255,.06)'},ticks:{precision:0}},x:{grid:{display:false}}}}});
+}
+
+/* ---------- table ---------- */
+function table(){
+  const rows=[...FILTERED].sort((a,b)=>{
+    const x=a[sortKey],y=b[sortKey];
+    return (typeof x==='number'?x-y:String(x).localeCompare(String(y)))*sortDir;
+  });
+  const tb=document.getElementById('tbody');
+  if(!rows.length){document.querySelector('.tblwrap').style.height='200px';tb.innerHTML='<tr><td colspan="7" class="empty">No shipments match these filters. Clear a filter to see rows again.</td></tr>';return;}
+  document.querySelector('.tblwrap').style.height=Math.min(window.innerWidth<760?420:620,Math.max(200,rows.length*38+44))+'px';
+  tb.innerHTML=rows.map(r=>`<tr>
+    <td><span class="pill">${esc(r.awb)}</span></td><td>${esc(r.dest)}</td><td>${esc(r.cons)}</td>
+    <td>${esc(r.cust)}</td><td>${esc(r.sp)}</td>
+    <td class="r num">${r.wt}</td><td class="r num" style="color:#ffc907;font-weight:600">${inr(r.amt)}</td></tr>`).join('');
+}
+document.querySelectorAll('th[data-s]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.s; sortDir = (k===sortKey)? -sortDir : -1; sortKey=k; table();
+});
+
+function render(){kpis();drawAll();table();}
+
+/* ---------- file loading ---------- */
+function readBook(buf,name){
+  const wb=XLSX.read(buf,{type:'array'});
+  let sheet=wb.SheetNames.find(n=>n.toLowerCase()==='worksheet')||wb.SheetNames.find(n=>n.toLowerCase()==='table1')||wb.SheetNames[0];
+  let raw=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{defval:''});
+  if(!raw.length||!pick(raw[0],['awb'])){
+    for(const n of wb.SheetNames){const t=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''});if(t.length&&pick(t[0],['awb'])){raw=t;sheet=n;break;}}
+  }
+  const out=raw.map(o=>({
+    awb:String(get(o,['awb'])||'').trim(),
+    wt:num(get(o,['weight','wt','chargeable'])),
+    dest:String(get(o,['destination','dest','country'])||'Not set').trim(),
+    cons:String(get(o,['consignee','receiver'])||'').trim(),
+    amt:num(get(o,['amount','sum of amount','value','freight'])),
+    cust:String(get(o,['customer name','customer','shipper','client'])||'Not set').trim(),
+    sp:String(get(o,['sales person','salesperson','sales','executive'])||'Not set').trim()
+  })).filter(r=>r.awb&&(r.amt||r.wt));
+  if(!out.length)throw new Error('No AWB rows found in this file.');
+  ROWS=out;
+  ['dest','sp','cust'].forEach(k=>F[k].clear());
+  buildMulti('m-dest','dest','All destinations');
+  buildMulti('m-sp','sp','All sales people');
+  buildMulti('m-cust','cust','All customers');
+  document.getElementById('fileLabel').textContent=name+'  •  sheet "'+sheet+'"  •  '+out.length+' rows';
+  apply();stamp();
+  toast(out.length+' shipments loaded from '+sheet);
+}
+const norm=s=>String(s).toLowerCase().replace(/[^a-z]/g,'');
+function get(o,keys){for(const k of Object.keys(o)){const n=norm(k);for(const w of keys)if(n===norm(w)||n.includes(norm(w)))return o[k];}return '';}
+function pick(o,keys){for(const k of Object.keys(o)){const n=norm(k);for(const w of keys)if(n.includes(norm(w)))return true;}return false;}
+const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;};
+
+async function loadFile(file){
+  try{readBook(await file.arrayBuffer(),file.name);}
+  catch(e){toast('Could not read that file. '+e.message,true);}
+}
+
+document.getElementById('btnPick').onclick=async()=>{
+  if(window.showOpenFilePicker){
+    try{
+      const [h]=await window.showOpenFilePicker({types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx','.xls','.csv']}}]});
+      fileHandle=h;document.getElementById('liveDot').className='dot';
+      await loadFile(await h.getFile());
+    }catch(e){}
+  } else document.getElementById('fileIn').click();
+};
+document.getElementById('fileIn').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);};
+
+document.getElementById('btnRefresh').onclick=async()=>{
+  if(fileHandle){await loadFile(await fileHandle.getFile());}
+  else{toast('Pick the file with Upload Excel file first, then refresh reads it again.');document.getElementById('btnPick').click();}
+};
+document.getElementById('autoSel').onchange=e=>{
+  clearInterval(timer);const s=+e.target.value;
+  if(s>0){
+    if(!fileHandle){toast('Upload the file first so it can be re-read automatically.');e.target.value='0';return;}
+    timer=setInterval(async()=>{try{await loadFile(await fileHandle.getFile());}catch(_){}} ,s*1000);
+    toast('Auto refresh on, every '+s+' seconds');
+  }
+};
+
+const drop=document.getElementById('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hot');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hot');}));
+drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+
+document.getElementById('btnCsv').onclick=()=>{
+  const head=['AWB','WEIGHT','DESTINATION','CONSIGNEE','AMOUNT','CUSTOMER NAME','SALES PERSON'];
+  const csv=[head.join(',')].concat(FILTERED.map(r=>[r.awb,r.wt,r.dest,r.cons,r.amt,r.cust,r.sp].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='hold_report_filtered.csv';a.click();
+  toast('CSV downloaded with '+FILTERED.length+' rows');
+};
+
+/* ---------- small controls ---------- */
+document.getElementById('fSearch').oninput=e=>{F.q=e.target.value.trim();apply();};
+document.getElementById('fMin').oninput=e=>{F.min=+e.target.value||0;apply();};
+document.getElementById('btnReset').onclick=()=>{
+  ['dest','sp','cust'].forEach(k=>F[k].clear());F.min=0;F.q='';
+  document.getElementById('fSearch').value='';document.getElementById('fMin').value='';
+  document.querySelectorAll('.multi input').forEach(c=>c.checked=false);
+  setHead(document.getElementById('m-dest'),F.dest,'All destinations');
+  setHead(document.getElementById('m-sp'),F.sp,'All sales people');
+  setHead(document.getElementById('m-cust'),F.cust,'All customers');
+  apply();
+};
+document.getElementById('segDest').onclick=e=>{if(e.target.dataset.n===undefined)return;
+  [...e.currentTarget.children].forEach(b=>b.classList.remove('on'));e.target.classList.add('on');topDest=+e.target.dataset.n;drawAll();};
+document.getElementById('segSp').onclick=e=>{if(e.target.dataset.n===undefined)return;
+  [...e.currentTarget.children].forEach(b=>b.classList.remove('on'));e.target.classList.add('on');topSp=+e.target.dataset.n;drawAll();};
+document.getElementById('segCount').onclick=e=>{if(e.target.dataset.n===undefined)return;
+  [...e.currentTarget.children].forEach(b=>b.classList.remove('on'));e.target.classList.add('on');topCount=+e.target.dataset.n;drawAll();};
+
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{drawAll();table();},220);});
+
+/* ---------- boot ---------- */
+buildMulti('m-dest','dest','All destinations');
+buildMulti('m-sp','sp','All sales people');
+buildMulti('m-cust','cust','All customers');
+apply();stamp();
+</script>
+</body>
+</html>
